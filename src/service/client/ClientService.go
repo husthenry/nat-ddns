@@ -238,6 +238,7 @@ func clientTransDataProcess(msg myproto.Msg, realChan entity.Channel){
 			if err.Error() != constants.EOF.Error() {
 				log.Println("read err:", err)
 				//disconn for sub channel
+				realChan.Conn.Close()
 				ccs.RemoveSubChannel(*msg.Key, *msg.Uri)
 
 				disconnMsg := myproto.Msg{
