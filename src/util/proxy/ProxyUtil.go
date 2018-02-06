@@ -36,7 +36,7 @@ func ConnTransfer(currentConn, targetConn net.Conn) {
 
 func ReadWrapper(dataChan chan myproto.Msg, errChan chan error, conn net.Conn) {
 
-	// ref io.Copy
+	// refer io.Copy
 	for {
 		if nil != conn {
 			r := bufio.NewReader(conn)

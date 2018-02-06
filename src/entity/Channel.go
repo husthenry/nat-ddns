@@ -5,9 +5,10 @@ import (
 )
 
 type Channel struct {
-	Id      int
-	Key     string             //User Channel Key
-	Uri     string             //User request uri
-	Conn    net.Conn           //User request conn
-	SubChan map[string]Channel //sub channel
+	Id       int
+	Key      string             //User Channel Key
+	Uri      string             //User request uri
+	Conn     net.Conn           //User request conn
+	Writable bool               //channel is wirtable
+	SubChan  map[string]Channel //sub channel
 }

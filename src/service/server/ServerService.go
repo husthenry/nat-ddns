@@ -99,6 +99,7 @@ func (ss *ServerService) serverDataProcess(dataChan chan myproto.Msg, errChan ch
 					Key:  clientKey,
 					Uri:  uid.String(),
 					Conn: conn,
+					Writable:true,
 					SubChan: make(map[string]entity.Channel),
 				}
 				scs.AddChannel(channel)
@@ -126,6 +127,21 @@ func (ss *ServerService) serverDataProcess(dataChan chan myproto.Msg, errChan ch
 				if nil != err {
 					log.Println("server send auth pkg failed!", err)
 				}
+			case constants.MSG_TYPE_CONNECT:
+				//set sub_channel writable to true
+				key := *msg.Key
+				uri := *msg.Uri
+				channel := scs.GetSubChannel(key, uri)
+				channel.Writable = true
+				scs.AddSubChannel(channel)
+				log.Println("key:", key, "uri:", uri, " set writable to true success!")
+			case constants.MSG_TYPE_DISCONNECT:
+				key := *msg.Key
+				uri := *msg.Uri
+				channel := scs.GetSubChannel(key, uri)
+				channel.Conn.Close()
+				scs.RemoveSubChannel(key, uri)
+				log.Println("key:", key, "uri:", uri, " disconn success!")
 			case constants.MSG_TYPE_TRANS:
 				//write to user channel
 				key := *msg.Key

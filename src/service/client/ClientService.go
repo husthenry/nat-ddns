@@ -99,6 +99,17 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 				if int(*msg.MsgType) == constants.MSG_TYPE_AUTH {
 					id = int(*msg.Id)
 
+					//add proxy chan
+					proxyChan := entity.Channel{
+						Id:int(*msg.Id),
+						Key:*msg.Key,
+						Uri:*msg.Uri,
+						Writable:true,
+						Conn:conn,
+						SubChan:make(map[string]entity.Channel),
+					}
+					ccs.AddChannel(proxyChan)
+
 					// ping
 					go cs.ping(conn)
 
@@ -154,43 +165,42 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 			case constants.MSG_TYPE_HEATBEAT:
 				//heat beat exception process
 
+			case constants.MSG_TYPE_CONNECT:
+				//handle conn msg: dial to real server
+				//dial to real server
+				realConn, _ := net.Dial("tcp", "www.baidu.com:80")
+				realChan := entity.Channel{
+					Id:int(*msg.Id),
+					Key:*msg.Key,
+					Uri:*msg.Uri,
+					Writable:true,
+					Conn:realConn,
+					SubChan:make(map[string]entity.Channel),
+				}
+				ccs.AddSubChannel(realChan)
+
+				connMsg := myproto.Msg{
+					Id:msg.Id,
+					Key:msg.Key,
+					Uri:msg.Uri,
+					MsgType:msg.MsgType,
+					Data:[]byte("client_conn_resp"),
+				}
+				//then resp to proxyChan
+				proxy.MsgWrite(connMsg, conn)
+
 			case constants.MSG_TYPE_TRANS:
 				//handle the trans data
-				target, _ := net.Dial("tcp", "www.baidu.com:80")
+				realChan := ccs.GetSubChannel(*msg.Key, *msg.Uri)
+
+				//target, _ := net.Dial("tcp", "www.baidu.com:80")
 				str := strings.Replace(string(msg.Data), "127.0.0.1:9191", "www.baidu.com", -1)
-				w := bufio.NewWriter(target)
+				w := bufio.NewWriter(realChan.Conn)
 				log.Println("bytes:", str)
 				w.Write([]byte(str))
 				w.Flush()
 
-				buf := make([]byte, 32*1024)
-				written := int64(0)
-				for {
-					i, err := target.Read(buf)
-					if i > 0 {
-						log.Println(string(buf[:i]))
-						msg := myproto.Msg{
-							Id:      msg.Id,
-							MsgType: proto.Int(constants.MSG_TYPE_TRANS),
-							Key:     msg.Key,
-							Uri:     msg.Uri,
-							Data:    buf[:i],
-						}
-
-						wc, err2 := proxy.MsgWrite(msg, conn)
-						written += int64(wc)
-						if nil != err2 {
-							log.Println("Write Error", err2)
-						}
-						log.Print(string(buf[:i]))
-					}
-					if err != nil {
-						if err != constants.EOF {
-							log.Println("read err:", err)
-						}
-						break
-					}
-				}
+				go clientTransDataProcess(msg, realChan)
 			}
 		case err := <-errChan:
 			if nil != err {
@@ -198,6 +208,49 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 				flag = false
 				return
 			}
+		}
+	}
+}
+
+func clientTransDataProcess(msg myproto.Msg, realChan entity.Channel){
+	buf := make([]byte, 32*1024)
+	written := int64(0)
+	proxyChan := ccs.GetChannel(*msg.Key)
+	for {
+		i, err := realChan.Conn.Read(buf)
+		if i > 0 {
+			log.Println(string(buf[:i]))
+			msg := myproto.Msg{
+				Id:      msg.Id,
+				MsgType: proto.Int(constants.MSG_TYPE_TRANS),
+				Key:     msg.Key,
+				Uri:     msg.Uri,
+				Data:    buf[:i],
+			}
+			wc, err2 := proxy.MsgWrite(msg, proxyChan.Conn)
+			written += int64(wc)
+			if nil != err2 {
+				log.Println("Write Error", err2)
+			}
+			log.Print(string(buf[:i]))
+		}
+		if err != nil {
+			if err.Error() != constants.EOF.Error() {
+				log.Println("read err:", err)
+				//disconn for sub channel
+				ccs.RemoveSubChannel(*msg.Key, *msg.Uri)
+
+				disconnMsg := myproto.Msg{
+					Id:      msg.Id,
+					MsgType: proto.Int(constants.MSG_TYPE_DISCONNECT),
+					Key:     msg.Key,
+					Uri:     msg.Uri,
+					Data:    []byte(err.Error()),
+				}
+
+				proxy.MsgWrite(disconnMsg, proxyChan.Conn)
+			}
+			break
 		}
 	}
 }

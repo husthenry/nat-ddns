@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"util/uuid"
 	"util/proxy"
+	"time"
 )
 
 type UserServerService struct {
@@ -52,6 +53,13 @@ func (sucs *UserServerService) UserServerStart() {
 }
 
 func (sucs *UserServerService) userServerHandle(conn net.Conn) {
+	isExistsProxyChan := uscs.IsContainsChannel(KEY)
+	if !isExistsProxyChan {
+		log.Println("no proxy chann exists:", KEY)
+		conn.Close()
+		return
+	}
+
 	dataChan := make(chan myproto.Msg)
 	errChan := make(chan error)
 	connCount++
@@ -61,21 +69,27 @@ func (sucs *UserServerService) userServerHandle(conn net.Conn) {
 		Id:   connCount,
 		Key:  KEY,
 		Uri:  uuid.GetRandomUUID(),
+		Writable:false,
 		Conn: conn,
+		SubChan:make(map[string]entity.Channel),
 	}
 
 	//添加子通道
 	uscs.AddSubChannel(channel)
 
 	//发送连接通知给客户端，等待响应
-	userHandleConn(channel)
+	isConn := userHandleConn(channel)
+	if !isConn {
+		log.Println("conn to client failed!")
+		return
+	}
 
 	//连接响应后处理用户请求
 	go sucs.userRequestWrapper(dataChan, errChan, conn, channel)
 	go sucs.userDataProcess(dataChan, errChan, conn)
 }
 
-func userHandleConn(channel entity.Channel){
+func userHandleConn(channel entity.Channel) bool{
 	//发送连接通知给客户端，等待响应
 	connMsg := myproto.Msg{
 		Id: proto.Int(connCount),
@@ -92,8 +106,31 @@ func userHandleConn(channel entity.Channel){
 		log.Println("send conn to client err:", err)
 		uscs.GetSubChannel(channel.Key, channel.Uri).Conn.Close()
 		uscs.RemoveSubChannel(channel.Key, channel.Uri)
-		return
+		return false
 	}
+
+	//等待60s客户端响应,如果正常响应则放行，反之断开连接
+	var flag = false
+	go func() {
+		time.Sleep(60*time.Second)
+		flag = true
+		log.Println("timeout task finish")
+	}()
+
+	for {
+		writable := uscs.GetSubChannel(channel.Key, channel.Uri).Writable
+		if writable {
+			return true
+		}
+		if flag && !channel.Writable {
+			log.Println("wait conn to client timeout!!!")
+			uscs.GetSubChannel(channel.Key, channel.Uri).Conn.Close()
+			uscs.RemoveSubChannel(channel.Key, channel.Uri)
+			return false
+		}
+	}
+
+	return false
 
 }
 
