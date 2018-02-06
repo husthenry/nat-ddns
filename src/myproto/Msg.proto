@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+package myproto;
+
+message Msg{
+    required int32 id = 1;
+    required int32 msgType = 2;
+    optional string key = 3;
+    optional string uri = 4;
+    required bytes data = 5;
+}
