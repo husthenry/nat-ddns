@@ -189,6 +189,8 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 				//then resp to proxyChan
 				proxy.MsgWrite(connMsg, conn)
 
+				go clientTransDataProcess(msg, realChan)
+
 			case constants.MSG_TYPE_TRANS:
 				//handle the trans data
 				realChan := ccs.GetSubChannel(*msg.Key, *msg.Uri)
@@ -199,8 +201,6 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 				log.Println("bytes:", str)
 				w.Write([]byte(str))
 				w.Flush()
-
-				go clientTransDataProcess(msg, realChan)
 			}
 		case err := <-errChan:
 			if nil != err {
