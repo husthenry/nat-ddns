@@ -9,7 +9,6 @@ import (
 	"myproto"
 	"net"
 	"strconv"
-	"strings"
 	"time"
 	"util/uuid"
 	"util/proxy"
@@ -25,14 +24,16 @@ var flag = true
 
 var sa string
 var ck string
+var rs string
 
 var ccs = GetCcsInstance()
 
 var count = 0
 
-func (cs *ClientService) ClientInit(serverAddr string, clientKey string) {
+func (cs *ClientService) ClientInit(serverAddr string, clientKey string, realServerAddr string) {
 	sa = serverAddr
 	ck = clientKey
+	rs = realServerAddr
 }
 
 func (cs *ClientService) ClientStart() {
@@ -168,7 +169,7 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 			case constants.MSG_TYPE_CONNECT:
 				//handle conn msg: dial to real server
 				//dial to real server
-				realConn, _ := net.Dial("tcp", "www.baidu.com:80")
+				realConn, _ := net.Dial("tcp", rs)
 				realChan := entity.Channel{
 					Id:int(*msg.Id),
 					Key:*msg.Key,
@@ -194,12 +195,15 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 			case constants.MSG_TYPE_TRANS:
 				//handle the trans data
 				realChan := ccs.GetSubChannel(*msg.Key, *msg.Uri)
+				if realChan.Id == 0 {
+					//todo: err process
+				}
 
 				//target, _ := net.Dial("tcp", "www.baidu.com:80")
-				str := strings.Replace(string(msg.Data), "127.0.0.1:9191", "www.baidu.com", -1)
+				//str := strings.Replace(string(msg.Data), "127.0.0.1:9191", "www.baidu.com", -1)
 				w := bufio.NewWriter(realChan.Conn)
-				log.Println("bytes:", str)
-				w.Write([]byte(str))
+				//log.Println("bytes:", str)
+				w.Write(msg.Data)
 				w.Flush()
 			}
 		case err := <-errChan:
