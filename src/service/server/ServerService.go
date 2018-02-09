@@ -12,9 +12,11 @@ import (
 	"net"
 	"strconv"
 	"util/proxy"
+	"util"
 )
 
 type ServerService struct {
+	sc entity.ServerConfig
 }
 
 var count = 0
@@ -24,33 +26,42 @@ var scks = GetScksInstance()
 
 var uss = UserServerService{}
 
-var p int
+func (ss *ServerService) ServerInit(config string) {
+	byts, err := util.ReadFile(config)
+	if nil != err {
+		log.Println("read server config err:", err)
+		panic(err)
+		return
+	}
 
-const (
-	ck = "MY_KEY"
-)
+	sc := entity.ServerConfig{}
+	err = json.Unmarshal(byts, &sc)
+	if nil != err {
+		log.Println("server config unmarshal err:", err)
+		panic(err)
+		return
+	}
+	ss.sc = sc
 
-func (ss *ServerService) ServerInit(port int, userPort int) {
+
 	//客户端密钥管理
-	scks.AddKey(ck)
+	scks.ServerClientKeyServiceInit(sc)
 
 	//用户请求处理服务初始化
-	uss.UserServerInit(userPort)
-
-	p = port
+	uss.UserServerInit(sc)
 }
 
 func (ss *ServerService) ServerStart() {
 	go uss.UserServerStart()
 
 	log.Println("server start>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-	listen, err := net.Listen("tcp", ":"+strconv.Itoa(p))
+	listen, err := net.Listen("tcp", ":"+strconv.Itoa(ss.sc.Port))
 	if nil != err {
-		log.Println("listen to port:", p, "err:", err)
+		log.Println("listen to port:", ss.sc.Port, "err:", err)
 		panic(err)
 	}
 
-	log.Println("server start at port:", p)
+	log.Println("server start at port:", ss.sc.Port)
 
 	for {
 		conn, err := listen.Accept()

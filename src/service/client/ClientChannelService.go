@@ -37,7 +37,7 @@ func (cscs *clientChannelService) AddChannel(channel entity.Channel) bool {
 		return false
 	}
 	cscs.channelMap[channel.Key]=channel
-	log.Println("ServerChannelService add key:", channel.Key)
+	log.Println("ClientChannelService add key:", channel.Key)
 
 	return true
 }

@@ -3,17 +3,21 @@ package main
 import (
 	"service/server"
 	"fmt"
+	"flag"
 )
 
 var ss = server.ServerService{}
 
-const port  = 9898
-const userPort = 9191
 
 func main() {
 	fmt.Println("server start>>>>>>>>>>>>>>>>>>>>>")
 
-	ss.ServerInit(port, userPort)
+	var config string
+	flag.StringVar(&config, "config", "./config.json", "--config ./config.json")
+
+	flag.Parse()
+
+	ss.ServerInit(config)
 
 	ss.ServerStart()
 

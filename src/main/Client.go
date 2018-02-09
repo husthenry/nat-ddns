@@ -3,20 +3,19 @@ package main
 import (
 	"service/client"
 	"fmt"
+	"flag"
 )
 
 var cs = client.ClientService{}
 
-const(
-	CLIENT_KEY = "MY_KEY"
-	SERVER_ADDR = ":9898"
-	REAL_SERVER = ":9090"
-)
-
 func main() {
 	fmt.Println("client conn to server>>>>>>>>>>>>>>>>>>>>>")
+	var clientConfig string
+	flag.StringVar(&clientConfig, "client_config", "./client_config.json", "--client_config=./client_config.json")
+	flag.Parse()
 
-	cs.ClientInit(SERVER_ADDR, CLIENT_KEY, REAL_SERVER)
+
+	cs.ClientInit(clientConfig)
 	cs.ClientStart()
 
 	fmt.Println("client conn close<<<<<<<<<<<<<<<<<<<<<<<<<")
