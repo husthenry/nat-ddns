@@ -3,12 +3,14 @@ package server
 import (
 	"fmt"
 	"sync"
-	"util/cache"
+	"log"
+	"entity"
 )
 
-//todo:接下来密钥管理中要抽象成一个实体，带密码管理，增加安全性
-
 type serverClientKeyService struct {
+	sc entity.ServerConfig
+	clientKeyMap map[string]string
+	lock sync.Mutex
 }
 
 var sscks *serverClientKeyService
@@ -16,34 +18,48 @@ var konce sync.Once
 
 func GetScksInstance() *serverClientKeyService {
 	konce.Do(func() {
-		sscks = &serverClientKeyService {}
+		sscks = &serverClientKeyService {
+			clientKeyMap: make(map[string]string),
+		}
 	})
 	return sscks
 }
 
+func (scks *serverClientKeyService) ServerClientKeyServiceInit(sc entity.ServerConfig)  {
+	scks.sc = sc
+
+	for i:=0; i<len(scks.sc.ClientKey); i++{
+		item := scks.sc.ClientKey[i]
+		for _, v := range item{
+			scks.AddKey(v)
+		}
+	}
+}
 
 func (scks *serverClientKeyService) IsContainsKey(clientKey string) bool {
-	return cache.IsContains(clientKey)
+	_, ok := scks.clientKeyMap[clientKey]
+	return ok
 }
 
 func (scks *serverClientKeyService) AddKey(clientKey string) bool {
-	var mutex sync.Mutex
-	mutex.Lock()
-	defer mutex.Unlock()
+	scks.lock.Lock()
+	defer scks.lock.Unlock()
 
-	if cache.IsContains(clientKey) {
+	if scks.IsContainsKey(clientKey) {
 		fmt.Println("client key is exists!!!")
 		return false
 	}
 
-	cache.Add(clientKey, clientKey)
+	scks.clientKeyMap[clientKey] = clientKey
+
+	log.Println("add client key:", clientKey, "success")
 	return true
 }
 
 func (scks *serverClientKeyService) RemoveKey(clientKey string) bool {
-	var mutex sync.Mutex
-	mutex.Lock()
-	defer mutex.Unlock()
-	cache.Remove(clientKey)
+	scks.lock.Lock()
+	defer scks.lock.Unlock()
+
+	delete(scks.clientKeyMap, clientKey)
 	return true
 }

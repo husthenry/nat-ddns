@@ -4,42 +4,43 @@ import (
 	"bufio"
 	"constants"
 	"entity"
-	"log"
 	"github.com/golang/protobuf/proto"
+	"log"
 	"myproto"
 	"net"
 	"strconv"
-	"util/uuid"
-	"util/proxy"
 	"time"
+	"util/proxy"
+	"util/uuid"
 )
 
 type UserServerService struct {
+	sc entity.ServerConfig
 }
 
-var up int
 var connCount = 0
 var uscs = GetScsInstance()
 
-//var uscks = ServerClientKeyService{}
+//todo: 多客户端用户请求管理
+//这里k只是单客户端用户请求管理
+var k string
 
-const (
-	KEY = "MY_KEY"
-)
-
-func (sucs *UserServerService) UserServerInit(port int) {
-	up = port
+func (sucs *UserServerService) UserServerInit(sc entity.ServerConfig) {
+	sucs.sc = sc
+	for _, v := range sc.ClientKey[0]{
+		k = v
+	}
 }
 
 func (sucs *UserServerService) UserServerStart() {
 	log.Println("user server start>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-	listen, err := net.Listen("tcp", ":"+strconv.Itoa(up))
+	listen, err := net.Listen("tcp", ":"+strconv.Itoa(sucs.sc.UserPort))
 	if nil != err {
-		log.Println("listen to port:", up, "err:", err)
+		log.Println("listen to port:", sucs.sc.UserPort, "err:", err)
 		panic(err)
 	}
 
-	log.Println("user server start at port:", up)
+	log.Println("user server start at port:", sucs.sc.UserPort)
 
 	for {
 		conn, err := listen.Accept()
@@ -53,9 +54,9 @@ func (sucs *UserServerService) UserServerStart() {
 }
 
 func (sucs *UserServerService) userServerHandle(conn net.Conn) {
-	isExistsProxyChan := uscs.IsContainsChannel(KEY)
+	isExistsProxyChan := uscs.IsContainsChannel(k)
 	if !isExistsProxyChan {
-		log.Println("no proxy chann exists:", KEY)
+		log.Println("no proxy chann exists:", k)
 		conn.Close()
 		return
 	}
@@ -66,12 +67,12 @@ func (sucs *UserServerService) userServerHandle(conn net.Conn) {
 
 	//user_channel request ur
 	channel := entity.Channel{
-		Id:   connCount,
-		Key:  KEY,
-		Uri:  uuid.GetRandomUUID(),
-		Writable:false,
-		Conn: conn,
-		SubChan:make(map[string]entity.Channel),
+		Id:       connCount,
+		Key:      k,
+		Uri:      uuid.GetRandomUUID(),
+		Writable: false,
+		Conn:     conn,
+		SubChan:  make(map[string]entity.Channel),
 	}
 
 	//添加子通道
@@ -89,17 +90,17 @@ func (sucs *UserServerService) userServerHandle(conn net.Conn) {
 	go sucs.userDataProcess(dataChan, errChan, conn)
 }
 
-func userHandleConn(channel entity.Channel) bool{
+func userHandleConn(channel entity.Channel) bool {
 	//发送连接通知给客户端，等待响应
 	connMsg := myproto.Msg{
-		Id: proto.Int(connCount),
-		MsgType:proto.Int(constants.MSG_TYPE_CONNECT),
-		Key:proto.String(KEY),
-		Uri: proto.String(channel.Uri),
-		Data: []byte("user_conn"),
+		Id:      proto.Int(connCount),
+		MsgType: proto.Int(constants.MSG_TYPE_CONNECT),
+		Key:     proto.String(k),
+		Uri:     proto.String(channel.Uri),
+		Data:    []byte("user_conn"),
 	}
 
-	proxyChan := uscs.GetChannel(KEY)
+	proxyChan := uscs.GetChannel(k)
 
 	_, err := proxy.MsgWrite(connMsg, proxyChan.Conn)
 	if nil != err {
@@ -112,7 +113,7 @@ func userHandleConn(channel entity.Channel) bool{
 	//等待60s客户端响应,如果正常响应则放行，反之断开连接
 	var flag = false
 	go func() {
-		time.Sleep(60*time.Second)
+		time.Sleep(60 * time.Second)
 		flag = true
 		log.Println("timeout task finish")
 	}()
@@ -148,7 +149,7 @@ func (sucs *UserServerService) userRequestWrapper(dataChan chan myproto.Msg, err
 		msg := myproto.Msg{
 			Id:      proto.Int(connCount),
 			MsgType: proto.Int(constants.MSG_TYPE_TRANS),
-			Key:     proto.String(KEY),
+			Key:     proto.String(k),
 			Uri:     proto.String(channel.Uri),
 			Data:    buf[:i],
 		}
@@ -168,7 +169,7 @@ func (sucs *UserServerService) userDataProcess(dataChan chan myproto.Msg, errCha
 			case constants.MSG_TYPE_TRANS:
 				//write to client
 				//直接将请求写入客户端中
-				channel := uscs.GetChannel(KEY)
+				channel := uscs.GetChannel(k)
 				_, err := proxy.MsgWrite(msg, channel.Conn)
 				if nil != err {
 					log.Println("msg write err:", err.Error())

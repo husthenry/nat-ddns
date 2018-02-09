@@ -14,6 +14,7 @@ import (
 	"util/proxy"
 	"util/math"
 	"entity"
+	"util"
 )
 
 type ClientService struct {
@@ -22,24 +23,33 @@ type ClientService struct {
 var id = 0
 var flag = true
 
-var sa string
-var ck string
-var rs string
+var cc = entity.ClientConfig{}
 
 var ccs = GetCcsInstance()
 
 var count = 0
 
-func (cs *ClientService) ClientInit(serverAddr string, clientKey string, realServerAddr string) {
-	sa = serverAddr
-	ck = clientKey
-	rs = realServerAddr
+func (cs *ClientService) ClientInit(clientConfig string) {
+
+	byts, err := util.ReadFile(clientConfig)
+	if nil != err {
+		log.Println("read client config err:", err)
+		panic(err)
+		return
+	}
+
+	err = json.Unmarshal(byts, &cc)
+	if nil != err {
+		log.Println("unmarshal client config err:", err)
+		panic(err)
+		return
+	}
 }
 
 func (cs *ClientService) ClientStart() {
-	conn, err := net.Dial("tcp", sa)
+	conn, err := net.Dial("tcp", cc.Server)
 	if nil != err {
-		log.Println("dial to server:", sa, " err:", err)
+		log.Println("dial to server:", cc.Server, " err:", err)
 		return
 	}
 
@@ -67,7 +77,7 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 	authMsg := myproto.Msg{
 		Id:      proto.Int(id),
 		MsgType: proto.Int32(constants.MSG_TYPE_AUTH),
-		Key:     proto.String(ck),
+		Key:     proto.String(cc.ClientKey),
 		Uri:     proto.String(uuid.GetRandomUUID()),
 		Data:    []byte("client_auth"),
 	}
@@ -141,7 +151,7 @@ func (cs *ClientService) ping(conn net.Conn) {
 			authMsg := myproto.Msg{
 				Id:      proto.Int(id),
 				MsgType: proto.Int32(constants.MSG_TYPE_HEATBEAT),
-				Key:     proto.String(ck),
+				Key:     proto.String(cc.ClientKey),
 				Uri:     proto.String(uuid.GetRandomUUID()),
 				Data:    []byte(strconv.Itoa(heatBeatCount)),
 			}
@@ -169,7 +179,7 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 			case constants.MSG_TYPE_CONNECT:
 				//handle conn msg: dial to real server
 				//dial to real server
-				realConn, _ := net.Dial("tcp", rs)
+				realConn, _ := net.Dial("tcp", cc.RealServer)
 				realChan := entity.Channel{
 					Id:int(*msg.Id),
 					Key:*msg.Key,
