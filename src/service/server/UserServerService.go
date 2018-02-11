@@ -23,6 +23,8 @@ var uscs = GetScsInstance()
 
 //todo: 多客户端用户请求管理
 //这里k只是单客户端用户请求管理
+//这里对于tcp的处理方案只能同过端口来进行处理
+//对于http可以同过url或者上下文根路径进行处理
 var k string
 
 func (sucs *UserServerService) UserServerInit(sc entity.ServerConfig) {
