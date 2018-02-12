@@ -138,7 +138,7 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 }
 
 func (cs *ClientService) ping(conn net.Conn) {
-	t := time.NewTicker(30 * time.Second)
+	t := time.NewTicker(60 * time.Second)
 
 	heatBeatCount := 0
 	heatBeatErrCount := 0
@@ -147,7 +147,8 @@ func (cs *ClientService) ping(conn net.Conn) {
 		select {
 		case i := <-t.C:
 			heatBeatCount++
-			log.Println("ping count:", strconv.Itoa(heatBeatCount), " client ping:", i.Format("2006-01-02 15:04:05"))
+			log.Println("ping count:", strconv.Itoa(heatBeatCount), " client ping:",
+				i.Format("2006-01-02 15:04:05"))
 			authMsg := myproto.Msg{
 				Id:      proto.Int(id),
 				MsgType: proto.Int32(constants.MSG_TYPE_HEATBEAT),

@@ -2,5 +2,5 @@
   "uid": "9e38630ca96540e5b8611e2d0347df9f",
   "client_key": "9e38630ca96540e5b8611e2d0347df9f",
   "server": "127.0.0.1:9898",
-  "real_server": "127.0.0.1:9090"
+  "real_server": "www.baidu.com:80"
 }

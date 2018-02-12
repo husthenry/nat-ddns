@@ -17,13 +17,19 @@ func main()  {
 
 	fmt.Println(string(byts))
 
-	cMap := make(map[string]string)
-	cMap["client_key_9e38630ca96540e5b8611e2d0347df9f"]="9e38630ca96540e5b8611e2d0347df9f"
-	cMap["client_key_9e38630ca96540e5b8611e2d0347df9f2"]="9e38630ca96540e5b8611e2d0347df9f2"
+	c1 := entity.ClientKeyConfig{
+		ClientKey: "9e38630ca96540e5b8611e2d0347df9f",
+		MapperPort: 8080,
+	}
+	c2 := entity.ClientKeyConfig{
+		ClientKey: "9e38630ca96540e5b8611e2d0347df9f2",
+		MapperPort: 8081,
+	}
+	var clientKeyConfig []entity.ClientKeyConfig
+	clientKeyConfig = append(clientKeyConfig, c1, c2)
 	sc := entity.ServerConfig{
 		Port: 9898,
-		UserPort: 9191,
-		ClientKey: []map[string]string{cMap},
+		ClientKeys: clientKeyConfig,
 	}
 	byts,_ = json.Marshal(sc)
 
