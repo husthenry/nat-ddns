@@ -4,17 +4,17 @@ import (
 	"bufio"
 	"constants"
 	"encoding/json"
+	"entity"
 	"github.com/golang/protobuf/proto"
 	"log"
 	"myproto"
 	"net"
 	"strconv"
 	"time"
-	"util/uuid"
-	"util/proxy"
-	"util/math"
-	"entity"
 	"util"
+	"util/math"
+	"util/proxy"
+	"util/uuid"
 )
 
 type ClientService struct {
@@ -112,17 +112,17 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 
 					//add proxy chan
 					proxyChan := entity.Channel{
-						Id:int(*msg.Id),
-						Key:*msg.Key,
-						Uri:*msg.Uri,
-						Writable:true,
-						Conn:conn,
-						SubChan:make(map[string]entity.Channel),
+						Id:       int(*msg.Id),
+						Key:      *msg.Key,
+						Uri:      *msg.Uri,
+						Writable: true,
+						Conn:     conn,
+						SubChan:  make(map[string]entity.Channel),
 					}
 					ccs.AddChannel(proxyChan)
 
 					// ping
-					go cs.ping(conn)
+					//go cs.ping(conn)
 
 					dataChan := make(chan myproto.Msg)
 					errChan := make(chan error)
@@ -182,21 +182,21 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 				//dial to real server
 				realConn, _ := net.Dial("tcp", cc.RealServer)
 				realChan := entity.Channel{
-					Id:int(*msg.Id),
-					Key:*msg.Key,
-					Uri:*msg.Uri,
-					Writable:true,
-					Conn:realConn,
-					SubChan:make(map[string]entity.Channel),
+					Id:       int(*msg.Id),
+					Key:      *msg.Key,
+					Uri:      *msg.Uri,
+					Writable: true,
+					Conn:     realConn,
+					SubChan:  make(map[string]entity.Channel),
 				}
 				ccs.AddSubChannel(realChan)
 
 				connMsg := myproto.Msg{
-					Id:msg.Id,
-					Key:msg.Key,
-					Uri:msg.Uri,
-					MsgType:msg.MsgType,
-					Data:[]byte("client_conn_resp"),
+					Id:      msg.Id,
+					Key:     msg.Key,
+					Uri:     msg.Uri,
+					MsgType: msg.MsgType,
+					Data:    []byte("client_conn_resp"),
 				}
 				//then resp to proxyChan
 				proxy.MsgWrite(connMsg, conn)
@@ -227,14 +227,13 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 	}
 }
 
-func clientTransDataProcess(msg myproto.Msg, realChan entity.Channel){
+func clientTransDataProcess(msg myproto.Msg, realChan entity.Channel) {
 	buf := make([]byte, 32*1024)
 	written := int64(0)
 	proxyChan := ccs.GetChannel(*msg.Key)
 	for {
 		i, err := realChan.Conn.Read(buf)
 		if i > 0 {
-			log.Println(string(buf[:i]))
 			msg := myproto.Msg{
 				Id:      msg.Id,
 				MsgType: proto.Int(constants.MSG_TYPE_TRANS),
@@ -247,7 +246,6 @@ func clientTransDataProcess(msg myproto.Msg, realChan entity.Channel){
 			if nil != err2 {
 				log.Println("Write Error", err2)
 			}
-			log.Print(string(buf[:i]))
 		}
 		if err != nil {
 			if err.Error() != constants.EOF.Error() {

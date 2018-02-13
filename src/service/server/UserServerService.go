@@ -145,10 +145,10 @@ func userHandleConn(channel entity.Channel, ckc entity.ClientKeyConfig) bool {
 
 func (sucs *UserServerService) userRequestWrapper(dataChan chan myproto.Msg, errChan chan error,
 	conn net.Conn, channel entity.Channel, ckc entity.ClientKeyConfig) {
+	buf := make([]byte, 32*1024)
 	for {
 		log.Println("start read user request>>>>>>>>>>>>>")
 		r := bufio.NewReader(conn)
-		buf := make([]byte, 1024)
 		i, err := r.Read(buf)
 		if nil != err {
 			errChan <- err
@@ -163,6 +163,8 @@ func (sucs *UserServerService) userRequestWrapper(dataChan chan myproto.Msg, err
 			Data:    buf[:i],
 		}
 
+		log.Println("TEST:", buf[:i])
+
 		dataChan <- msg
 	}
 }
@@ -172,7 +174,6 @@ func (sucs *UserServerService) userDataProcess(dataChan chan myproto.Msg, errCha
 	for {
 		select {
 		case msg := <-dataChan:
-			log.Println("msg from client:")
 			log.Println(" msgId:", *msg.Id, ", msgType:", *msg.MsgType, ", uri:", *msg.Uri,
 				", data:", string(msg.Data))
 			switch int(*msg.MsgType) {
