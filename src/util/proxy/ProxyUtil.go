@@ -19,7 +19,7 @@ func ConnTransfer(currentConn, targetConn net.Conn) {
 		defer wg.Done()
 		wg.Add(1)
 		io.Copy(toConn, conn)
-		conn.Close()
+		//conn.Close()
 	}(targetConn, currentConn)
 
 	// 将目标响应返回给客户端
@@ -27,7 +27,7 @@ func ConnTransfer(currentConn, targetConn net.Conn) {
 		defer wg.Done()
 		wg.Add(1)
 		io.Copy(conn, toConn)
-		toConn.Close()
+		//toConn.Close()
 	}(currentConn, targetConn)
 
 	//等待相应的线程都执行完毕

@@ -2,14 +2,14 @@ package main
 
 import (
 	"service/client"
-	"fmt"
 	"flag"
+	"log"
 )
 
 var cs = client.ClientService{}
 
 func main() {
-	fmt.Println("client conn to server>>>>>>>>>>>>>>>>>>>>>")
+	log.Println("client conn to server>>>>>>>>>>>>>>>>>>>>>")
 	var clientConfig string
 	flag.StringVar(&clientConfig, "client_config", "./client_config.json", "--client_config=./client_config.json")
 	flag.Parse()
@@ -18,7 +18,7 @@ func main() {
 	cs.ClientInit(clientConfig)
 	cs.ClientStart()
 
-	fmt.Println("client conn close<<<<<<<<<<<<<<<<<<<<<<<<<")
+	log.Println("client conn close<<<<<<<<<<<<<<<<<<<<<<<<<")
 }
 
 

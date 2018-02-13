@@ -27,12 +27,10 @@ func GetScksInstance() *serverClientKeyService {
 
 func (scks *serverClientKeyService) ServerClientKeyServiceInit(sc entity.ServerConfig)  {
 	scks.sc = sc
-
-	for i:=0; i<len(scks.sc.ClientKey); i++{
-		item := scks.sc.ClientKey[i]
-		for _, v := range item{
-			scks.AddKey(v)
-		}
+	clientKeyConfig := scks.sc.ClientKeys
+	for i:=0; i<len(clientKeyConfig); i++{
+		item := clientKeyConfig[i]
+		scks.AddKey(item.ClientKey)
 	}
 }
 
