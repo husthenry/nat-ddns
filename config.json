@@ -4,6 +4,10 @@
     {
       "client_key": "9e38630ca96540e5b8611e2d0347df9f",
       "mapper_port": 8080
+    },
+    {
+      "client_key": "9e38630ca96540e5b8611e2d0347df9f2",
+      "mapper_port": 18080
     }
   ]
 }
