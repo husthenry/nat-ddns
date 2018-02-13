@@ -24,7 +24,7 @@ var uscs = GetScsInstance()
 //todo: 多客户端用户请求管理
 //这里k只是单客户端用户请求管理
 //这里对于tcp的处理方案只能同过端口来进行处理 已经添加done
-//对于http可以同过url或者上下文根路径进行处理
+//对于http可以同过url或者上下文根路径进行处理 todo:
 var clientKeyConfig []entity.ClientKeyConfig
 
 func (sucs *UserServerService) UserServerInit(sc entity.ServerConfig) {
@@ -162,8 +162,6 @@ func (sucs *UserServerService) userRequestWrapper(dataChan chan myproto.Msg, err
 			Uri:     proto.String(channel.Uri),
 			Data:    buf[:i],
 		}
-
-		log.Println("TEST:", buf[:i])
 
 		dataChan <- msg
 	}
