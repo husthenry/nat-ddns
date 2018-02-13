@@ -10,11 +10,17 @@ go build Server.go
 ```json
 //config.json
 {
-  "port": 9898,//服务端监听端口
-  "user_port": 9191,//用户请求监听端口
-  "client_keys": [{
-    "client_key_9e38630ca96540e5b8611e2d0347df9f": "9e38630ca96540e5b8611e2d0347df9f"//客户端访问KEY，目前只支持一个客户端
-  }]
+  "port": 9898,//proxy代理端口
+  "client_keys": [
+    {
+      "client_key": "9e38630ca96540e5b8611e2d0347df9f",//客户端1秘钥
+      "mapper_port": 8080 //客户端1监听端口
+    },
+    {
+      "client_key": "9e38630ca96540e5b8611e2d0347df9f2",//客户端2秘钥
+      "mapper_port": 18080 //客户端2监听端口
+    }
+  ]
 }
 ``` 
 
