@@ -59,6 +59,9 @@ func (cs *ClientService) ClientStart() {
 			cs.IsConnected = true
 
 			go cs.clientHandle(conn)
+		}else{
+			//阻塞,防止cpu被过度利用
+			time.Sleep(10*time.Second)
 		}
 	}
 }
