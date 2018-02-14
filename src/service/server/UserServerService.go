@@ -14,15 +14,17 @@ import (
 	"util/uuid"
 )
 
+//用户请求数据管理
 type UserServerService struct {
 	sc entity.ServerConfig
 }
 
 var connCount = 0
+
+//get user server channel
 var uscs = GetScsInstance()
 
 //todo: 多客户端用户请求管理
-//这里k只是单客户端用户请求管理
 //这里对于tcp的处理方案只能同过端口来进行处理 已经添加done
 //对于http可以同过url或者上下文根路径进行处理 todo:
 var clientKeyConfig []entity.ClientKeyConfig

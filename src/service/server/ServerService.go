@@ -9,6 +9,7 @@ import (
 	"util"
 )
 
+//代理服务管理
 type ServerService struct {
 	sc entity.ServerConfig
 }
@@ -70,7 +71,7 @@ func (ss *ServerService) ServerStart() {
 		}
 
 		pss := ProxyServerService{true, 0}
-		go pss.serverHandle(conn)
+		go pss.ServerHandle(conn)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"entity"
 )
 
+//客户端秘钥管理
 type serverClientKeyService struct {
 	sc entity.ServerConfig
 	clientKeyMap map[string]string

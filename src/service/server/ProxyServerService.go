@@ -14,12 +14,13 @@ import (
 	"util/uuid"
 )
 
+// proxy server与client server管理服务
 type ProxyServerService struct {
 	IsConnected bool
 	count       int
 }
 
-func (pss *ProxyServerService) serverHandle(conn net.Conn) {
+func (pss *ProxyServerService) ServerHandle(conn net.Conn) {
 	dataChan := make(chan myproto.Msg)
 	errChan := make(chan error)
 	heartBeatChan := make(chan myproto.Msg)
@@ -40,7 +41,7 @@ func (pss *ProxyServerService) serverDataProcess(dataChan chan myproto.Msg, hear
 
 			clientKey := *msg.Key
 			switch int(*msg.MsgType) {
-			case constants.MSG_TYPE_AUTH:
+			case constants.MSG_TYPE_AUTH://客户端验证
 
 				//判断客户端是否合法
 				if !scks.IsContainsKey(clientKey) {
@@ -82,9 +83,9 @@ func (pss *ProxyServerService) serverDataProcess(dataChan chan myproto.Msg, hear
 				}
 
 				//开启心跳监控
-				go pss.ServerHeartBeatProcess(heartBeatChan, channel, 60)
+				go pss.serverHeartBeatProcess(heartBeatChan, channel, 60)
 
-			case constants.MSG_TYPE_HEATBEAT:
+			case constants.MSG_TYPE_HEATBEAT: //心跳处理
 				heartBeatChan <- msg
 				heatBeatMsg := myproto.Msg{
 					Id:      proto.Int(pss.count),
@@ -97,7 +98,7 @@ func (pss *ProxyServerService) serverDataProcess(dataChan chan myproto.Msg, hear
 				if nil != err {
 					log.Println("server send auth pkg failed!", err)
 				}
-			case constants.MSG_TYPE_CONNECT:
+			case constants.MSG_TYPE_CONNECT: //set user channel writable
 				//set sub_channel writable to true
 				key := *msg.Key
 				uri := *msg.Uri
@@ -105,14 +106,14 @@ func (pss *ProxyServerService) serverDataProcess(dataChan chan myproto.Msg, hear
 				channel.Writable = true
 				scs.AddSubChannel(channel)
 				log.Println("key:", key, "uri:", uri, " set writable to true success!")
-			case constants.MSG_TYPE_DISCONNECT:
+			case constants.MSG_TYPE_DISCONNECT: //channel close
 				key := *msg.Key
 				uri := *msg.Uri
 				channel := scs.GetSubChannel(key, uri)
 				channel.Conn.Close()
 				scs.RemoveSubChannel(key, uri)
 				log.Println("key:", key, "uri:", uri, " disconn success!")
-			case constants.MSG_TYPE_TRANS:
+			case constants.MSG_TYPE_TRANS: //处理来自客户端传输数据
 				//write to user channel
 				key := *msg.Key
 				uri := *msg.Uri
@@ -121,7 +122,7 @@ func (pss *ProxyServerService) serverDataProcess(dataChan chan myproto.Msg, hear
 				w.Write(msg.Data)
 				w.Flush()
 			}
-		case err := <-errChan:
+		case err := <-errChan: //err process
 			if nil != err {
 				log.Println("An error occured:", err.Error())
 				return
@@ -130,7 +131,7 @@ func (pss *ProxyServerService) serverDataProcess(dataChan chan myproto.Msg, hear
 	}
 }
 
-func (pss *ProxyServerService) ServerHeartBeatProcess(heartBeatChan chan myproto.Msg, channel entity.Channel, timeout int) {
+func (pss *ProxyServerService) serverHeartBeatProcess(heartBeatChan chan myproto.Msg, channel entity.Channel, timeout int) {
 	log.Println("heart beat process start>>>>>>>>>>>>>>>>>>>>>>>>>>>>key:", channel.Key)
 
 	for pss.IsConnected {

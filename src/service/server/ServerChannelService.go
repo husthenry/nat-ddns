@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+//用户渠道管理
 type serverChannelService struct {
 	channelMap map[string]entity.Channel
 	lock sync.Mutex
