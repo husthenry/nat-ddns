@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-var cs = client.ClientService{}
+var cs = client.ClientService{0, false}
 
 func main() {
 	log.Println("client conn to server>>>>>>>>>>>>>>>>>>>>>")

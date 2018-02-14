@@ -18,16 +18,14 @@ import (
 )
 
 type ClientService struct {
+	Id          int
+	IsConnected bool
 }
-
-var id = 0
-var flag = true
 
 var cc = entity.ClientConfig{}
 
+// get client channel service
 var ccs = GetCcsInstance()
-
-var count = 0
 
 func (cs *ClientService) ClientInit(clientConfig string) {
 
@@ -47,20 +45,20 @@ func (cs *ClientService) ClientInit(clientConfig string) {
 }
 
 func (cs *ClientService) ClientStart() {
-	conn, err := net.Dial("tcp", cc.Server)
-	if nil != err {
-		log.Println("dial to server:", cc.Server, " err:", err)
-		return
-	}
-
-	go cs.clientHandle(conn)
 
 	for {
-		if cs.IsConnected() {
-			time.Sleep(1 * time.Second)
-			continue
-		} else {
-			log.Println("conn is closed!!")
+		if !cs.IsConnected {
+			log.Println("conn to server..............")
+			conn, err := net.Dial("tcp", cc.Server)
+			if nil != err {
+				log.Println("dial to server:", cc.Server, " err:", err, " 5s later will be reconn......")
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			cs.IsConnected = true
+
+			go cs.clientHandle(conn)
 		}
 	}
 }
@@ -69,13 +67,9 @@ func (cs *ClientService) clientHandle(conn net.Conn) {
 	cs.cilentAuth(conn)
 }
 
-func (cs *ClientService) IsConnected() bool {
-	return flag
-}
-
 func (cs *ClientService) cilentAuth(conn net.Conn) {
 	authMsg := myproto.Msg{
-		Id:      proto.Int(id),
+		Id:      proto.Int(cs.Id),
 		MsgType: proto.Int32(constants.MSG_TYPE_AUTH),
 		Key:     proto.String(cc.ClientKey),
 		Uri:     proto.String(uuid.GetRandomUUID()),
@@ -85,7 +79,7 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 	_, err := proxy.MsgWrite(authMsg, conn)
 	if nil != err {
 		log.Println("client send auth err")
-		flag = false
+		cs.IsConnected = false
 		return
 	}
 
@@ -108,7 +102,13 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 				msgBytes, _ := json.Marshal(msg)
 				log.Println("recv data from server:", string(msgBytes))
 				if int(*msg.MsgType) == constants.MSG_TYPE_AUTH {
-					id = int(*msg.Id)
+					cs.Id = int(*msg.Id)
+
+					//如果存在之前连接,则清除之前连接
+					if ccs.IsContainsChannel(*msg.Key) {
+						ccs.GetChannel(*msg.Key).Conn.Close()
+						ccs.RemoveChannel(*msg.Key)
+					}
 
 					//add proxy chan
 					proxyChan := entity.Channel{
@@ -122,14 +122,16 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 					ccs.AddChannel(proxyChan)
 
 					// ping
-					//go cs.ping(conn)
+					go cs.ping(conn)
 
 					dataChan := make(chan myproto.Msg)
 					errChan := make(chan error)
+					heartBeatChan := make(chan myproto.Msg)
+					go cs.ClientHeartBeatProcess(heartBeatChan, proxyChan, 60)
 					go proxy.ReadWrapper(dataChan, errChan, conn)
+					go cs.clientDataProcess(dataChan, heartBeatChan, errChan, conn)
 
-					go cs.clientDataProcess(dataChan, errChan, conn)
-
+					cs.IsConnected = true
 					break
 				}
 			}
@@ -138,19 +140,21 @@ func (cs *ClientService) cilentAuth(conn net.Conn) {
 }
 
 func (cs *ClientService) ping(conn net.Conn) {
-	t := time.NewTicker(60 * time.Second)
+	log.Println("send heart beat packet......")
+
+	t := time.NewTicker(30 * time.Second)
 
 	heatBeatCount := 0
 	heatBeatErrCount := 0
 
-	for {
+	for cs.IsConnected {
 		select {
 		case i := <-t.C:
 			heatBeatCount++
 			log.Println("ping count:", strconv.Itoa(heatBeatCount), " client ping:",
 				i.Format("2006-01-02 15:04:05"))
 			authMsg := myproto.Msg{
-				Id:      proto.Int(id),
+				Id:      proto.Int(cs.Id),
 				MsgType: proto.Int32(constants.MSG_TYPE_HEATBEAT),
 				Key:     proto.String(cc.ClientKey),
 				Uri:     proto.String(uuid.GetRandomUUID()),
@@ -166,7 +170,8 @@ func (cs *ClientService) ping(conn net.Conn) {
 	}
 }
 
-func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan chan error, conn net.Conn) {
+func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, heartBeatChan chan myproto.Msg,
+	errChan chan error, conn net.Conn) {
 	for {
 		select {
 		case msg := <-dataChan:
@@ -176,6 +181,7 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 			switch int(*msg.MsgType) {
 			case constants.MSG_TYPE_HEATBEAT:
 				//heat beat exception process
+				heartBeatChan <- msg
 
 			case constants.MSG_TYPE_CONNECT:
 				//handle conn msg: dial to real server
@@ -220,7 +226,7 @@ func (cs *ClientService) clientDataProcess(dataChan chan myproto.Msg, errChan ch
 		case err := <-errChan:
 			if nil != err {
 				log.Println("An error occured:", err.Error())
-				flag = false
+				cs.IsConnected = false
 				return
 			}
 		}
@@ -267,4 +273,22 @@ func clientTransDataProcess(msg myproto.Msg, realChan entity.Channel) {
 			break
 		}
 	}
+}
+
+func (cs *ClientService) ClientHeartBeatProcess(heartBeatChan chan myproto.Msg, channel entity.Channel, timeout int) {
+	log.Println("heart beat process start>>>>>>>>>>>>>>>>>>>>>>>>>>>>key:", channel.Key)
+	for cs.IsConnected {
+		select {
+		case heartBeatMsg := <-heartBeatChan:
+			log.Println("Key:", *heartBeatMsg.Key, "心跳:", string(heartBeatMsg.Data))
+			channel.Conn.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
+		case <-time.After(time.Duration(timeout) * time.Second):
+			//心跳异常结束客户端链接
+			log.Println("Key:", channel.Key, "conn dead now")
+			channel.Conn.Close()
+			cs.IsConnected = false
+			break
+		}
+	}
+	log.Println("heart beat process end<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<key:", channel.Key)
 }
