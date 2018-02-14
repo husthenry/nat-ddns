@@ -10,7 +10,7 @@ go build Server.go
 ```json
 //config.json
 {
-  "port": 9898,//proxy代理端口
+  "port": 9257,//proxy代理端口
   "client_keys": [
     {
       "client_key": "9e38630ca96540e5b8611e2d0347df9f",//客户端1秘钥
@@ -35,7 +35,7 @@ go build Client.go
 {
   "uid": "wenj91",//用户uid,多客户端支持标识
   "client_key": "9e38630ca96540e5b8611e2d0347df9f",//客户端访问KEY
-  "server": "127.0.0.1:9898",//代理服务器ip:port
+  "server": "127.0.0.1:9257",//代理服务器ip:port
   "real_server": "127.0.0.1:9090"//实际服务器ip:port
 }
 ```
