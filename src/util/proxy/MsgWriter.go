@@ -8,8 +8,6 @@ import (
 	"net"
 	"constants"
 	"util/math"
-	"log"
-	"encoding/json"
 )
 
 
@@ -31,9 +29,9 @@ func MsgWrite(msg myproto.Msg, conn net.Conn) (int, error){
 		return wc, constants.ErrShortWrite
 	}
 
-	bts,_:=json.Marshal(msg)
-	log.Println("msg:", string(msg.Data))
-	log.Println("msg write success:", string(bts))
+	//bts,_:=json.Marshal(msg)
+	//log.Println("msg:", string(msg.Data))
+	//log.Println("msg write success:", string(bts))
 
 	return wc, nil
 }
